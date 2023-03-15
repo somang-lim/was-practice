@@ -42,32 +42,11 @@ public class CustomWebApplicationServer {
 				logger.info("[CustomWebApplicationServer] client connected!");
 
 				/**
-				 * Step 1. 사용자 요청을 메인 Thread 가 처리하도록 한다.
+				 * Step 2. 사용자 요청이 들어올 때마다 Thread 를 새로 생성해서 사용자 요청을 처리하도록 한다.
+				 * Thread 를 새로 생성할 때마다 독립적 stack 메모리를 할당 받는다. --> 성능이 매우 저하될 수 있
 				 */
-				try (InputStream in = clientSocket.getInputStream(); OutputStream out = clientSocket.getOutputStream()) {
-					// InputStream --> InputStreamReader --> BufferedReader (각 라인으로 읽도록)
-					BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-					// OutputStream --> DataOutputStream
-					DataOutputStream dos = new DataOutputStream(out);
+				new Thread(new ClientRequestHandler(clientSocket)).start();
 
-					HttpRequest httpRequest = new HttpRequest(br);
-
-					// GET /calculate?operand1=11&operator=*&operand2=55 HTTP/1.1
-					if (httpRequest.isGetRequest() && httpRequest.matchPath("/calculate")) {
-						QueryStrings queryStrings = httpRequest.getQueryString();
-
-						int operand1 = Integer.parseInt(queryStrings.getValue("operand1"));
-						String operator = queryStrings.getValue("operator");
-						int operand2 = Integer.parseInt(queryStrings.getValue("operand2"));
-
-						int result = Calculator.calculate(new PositiveNumber(operand1), operator, new PositiveNumber(operand2));
-						byte[] body = String.valueOf(result).getBytes();
-
-						HttpResponse response = new HttpResponse(dos);
-						response.response200Header("application/json", body.length);
-						response.responseBody(body);
-					}
-				}
 			}
 		}
 	}
